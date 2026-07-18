@@ -16,12 +16,39 @@ Manrope/Inter.
 
 ## Hai màn hình chính
 
-1. **📋 Danh mục tài liệu** — xem/tìm/thêm/sửa/xóa theo từng loại tài liệu (tab), gợi ý mã
-   MSTL tiếp theo tự động.
+1. **📋 Danh mục tài liệu** — xem/tìm/thêm/sửa/xóa theo từng loại tài liệu (tab), MSTL được
+   cấp **tự động đúng theo quy tắc chính thức** đọc từ sheet "Nguyên tắc đặt mã số" của bạn
+   (prefix theo loại tài liệu + mã đơn vị + số thứ tự tăng dần), cộng thêm tab riêng
+   **⛔ Hết hiệu lực** gom tất cả tài liệu đã đánh dấu hết hiệu lực từ mọi loại vào một chỗ.
 2. **📊 Thống kê tổng hợp** — tự tính lại từ dữ liệu hiện có, gồm: tổng số tài liệu, số đơn
-   vị, số tài liệu ban hành trong năm hiện tại, số tài liệu chưa có số QĐ chính thức; bảng
-   ma trận Đơn vị biên soạn × Loại tài liệu; biểu đồ số tài liệu ban hành theo năm; và ô
-   đếm số tài liệu ban hành trong một khoảng thời gian tùy chọn.
+   vị, số tài liệu ban hành trong năm hiện tại, số tài liệu chưa có số QĐ chính thức, số tài
+   liệu hết hiệu lực; bảng ma trận Đơn vị biên soạn × Loại tài liệu; biểu đồ theo năm; và ô
+   đếm tài liệu ban hành trong một khoảng thời gian tùy chọn.
+
+## Cấp mã số (MSTL) tự động theo đúng quy tắc của bạn
+
+Trang đọc trực tiếp sheet **"Nguyên tắc đặt mã số"** trong file Excel (bảng mẫu mã ở cột
+A-B và bảng Tên đơn vị/Mã đơn vị) để:
+- Hiển thị **Đơn vị biên soạn** dưới dạng danh sách chọn (không gõ tay), tránh sai mã đơn vị.
+- Khi bạn chọn đơn vị lúc thêm tài liệu mới, ô **MSTL tự động điền** theo đúng mẫu
+  (VD: `QT-C1.3-M07` cho Quy trình kỹ thuật của Khoa Cấp cứu), số thứ tự lấy theo số lớn
+  nhất hiện có của đúng đơn vị + đúng loại tài liệu đó, cộng thêm 1.
+- Nếu file của bạn không có sheet này (hoặc thiếu bảng đơn vị), trang sẽ báo bằng dòng cảnh
+  báo màu vàng và tự chuyển sang cách gợi ý cũ (suy đoán mẫu mã từ dữ liệu đã có).
+- Riêng sheet **QT KXN** (Khối xét nghiệm) chưa có dòng quy tắc trong bảng mẫu — mã số vẫn
+  dùng cách suy đoán cũ; nếu khối xét nghiệm có quy tắc mã riêng, cho biết để mình thêm vào.
+
+## Số thứ tự (Stt) tự động tăng dần theo từng loại tài liệu
+
+Mỗi khi thêm tài liệu mới trong một tab (VD: QTKT), Stt được tính bằng Stt lớn nhất hiện có
+**trong đúng tab đó** cộng 1 — không ảnh hưởng đến Stt của các loại tài liệu khác.
+
+## Tài liệu hết hiệu lực
+
+Mỗi dòng có thêm cột **Trạng thái** (Còn hiệu lực / Hết hiệu lực), sửa được ngay khi bấm
+"Sửa". Tab **⛔ Hết hiệu lực** tự động gom mọi dòng có trạng thái này từ tất cả các loại tài
+liệu vào một bảng chung, có nút "Mở để sửa" để nhảy thẳng về đúng tab gốc và chỉnh lại nếu
+cần. File cũ chưa có cột này sẽ tự được gán "Còn hiệu lực" khi mở lần đầu.
 
 ## Quy trình triển khai: tạo repo trên GitHub → nối sang Cloudflare Pages
 

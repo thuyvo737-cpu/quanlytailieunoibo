@@ -12,7 +12,7 @@
   :root{
     --ink:#12261e; --paper:#f3f7f3; --paper-2:#ffffff; --line:#dbe6dc;
     --green:#1c8a5c; --green-deep:#0f4a34; --green-soft:#e6f3ea;
-    --lime:#8bc34a; --amber:#d98c2b; --muted:#5f7168;
+    --lime:#8bc34a; --amber:#d98c2b; --muted:#5f7168; --red:#a13322;
     --mono:'JetBrains Mono',Consolas,monospace;
     --head:'Manrope',system-ui,sans-serif; --sans:'Inter','Segoe UI',system-ui,sans-serif;
   }
@@ -39,7 +39,7 @@
   .btn-secondary{background:transparent;border:1px solid var(--green);color:var(--green-deep);}
   .btn-secondary:hover{background:var(--green-soft);}
   .btn-ghost{background:transparent;color:var(--muted);border:1px dashed var(--line);}
-  .btn-danger{background:transparent;color:#a13322;border:1px solid #e6b6ac;}
+  .btn-danger{background:transparent;color:var(--red);border:1px solid #e6b6ac;}
   .btn-danger:hover{background:#fbeceb;}
   button:disabled{opacity:.4;cursor:not-allowed;}
   .connect-box{border:2px dashed var(--line);border-radius:10px;padding:22px;text-align:center;color:var(--muted);}
@@ -53,6 +53,9 @@
   .tab{padding:7px 12px;font-size:12px;font-family:var(--mono);color:var(--muted);cursor:pointer;border-bottom:2px solid transparent;white-space:nowrap;}
   .tab.active{color:var(--green-deep);border-bottom-color:var(--lime);font-weight:700;}
   .tab .count{color:var(--green);}
+  .tab.expired-tab{color:var(--red);}
+  .tab.expired-tab .count{color:var(--red);}
+  .tab.expired-tab.active{border-bottom-color:var(--red);}
   table{width:100%;border-collapse:collapse;font-size:12.5px;}
   thead th{text-align:left;padding:7px 7px;background:var(--green-soft);border-bottom:2px solid var(--line);color:var(--green-deep);position:sticky;top:0;white-space:nowrap;}
   tbody td{padding:6px 7px;border-bottom:1px solid #ecf1ec;vertical-align:top;}
@@ -67,12 +70,13 @@
   .msg{font-size:12px;padding:7px 10px;border-radius:6px;display:none;margin-top:8px;}
   .msg.show{display:block;}
   .msg.ok{background:#eaf6ee;color:#2f7d4f;border:1px solid #bfe4cc;}
-  .msg.err{background:#fbeceb;color:#a13322;border:1px solid #f0c2bc;}
+  .msg.err{background:#fbeceb;color:var(--red);border:1px solid #f0c2bc;}
   .cell-input{width:100%;padding:4px 5px;font-size:12px;border:1px solid var(--green);border-radius:4px;}
   .actions-cell{white-space:nowrap;display:flex;gap:5px;}
   .actions-cell button{padding:4px 8px;font-size:11px;}
   footer{text-align:center;color:var(--muted);font-size:11px;font-family:var(--mono);padding:18px;}
   .browserwarn{font-size:12px;background:#fff4e2;border:1px solid #f0d3a8;color:var(--amber);padding:9px 11px;border-radius:6px;margin-bottom:12px;}
+  .rulewarn{font-size:12px;background:#fff4e2;border:1px solid #f0d3a8;color:var(--amber);padding:9px 11px;border-radius:6px;margin-bottom:12px;display:none;}
   .kbd{border:1px solid var(--line);border-bottom-width:2px;border-radius:4px;padding:0 5px;font-family:var(--mono);font-size:11px;background:#fff;}
 
   /* stats */
@@ -105,7 +109,10 @@
 
   <div class="browserwarn" id="browserWarn" style="display:none">
     Trình duyệt hiện tại không hỗ trợ ghi trực tiếp vào file trên máy (cần <b>Chrome</b> hoặc <b>Edge</b> bản mới).
-    Bạn vẫn thao tác bình thường — hệ thống sẽ tự tải một bản sao Excel về Downloads sau mỗi thay đổi, thay vì ghi đè trực tiếp vào file gốc.
+    Bạn vẫn thao tác bình thường — hệ thống sẽ tự tải một bản sao Excel về Downloads sau mỗi thay đổi.
+  </div>
+  <div class="rulewarn" id="ruleWarn">
+    Không tìm thấy sheet "Nguyên tắc đặt mã số" (hoặc thiếu bảng Tên đơn vị/Mã đơn vị) trong file này — mã MSTL sẽ được gợi ý theo cách suy đoán từ dữ liệu cũ thay vì theo đúng quy tắc chính thức.
   </div>
 
   <section class="panel" id="connectPanel">
@@ -179,7 +186,12 @@ let editingRowIdx = null;
 const FS_SUPPORTED = 'showOpenFilePicker' in window;
 
 const EDITABLE_SHEETS = ['QTVH','QTCS','QTKT','QTTH','QT KXN','Quy định','Hướng dẫn','Phác đồ'];
-const CORE_COLS = ['Stt','Loại tài liệu','Đơn vị biên soạn','MSTL','Tên tài liệu','Lần BH','Ngày hiệu lực','Tháng','Năm','QĐ ban hành'];
+const CORE_COLS = ['Stt','Loại tài liệu','Đơn vị biên soạn','MSTL','Tên tài liệu','Lần BH','Ngày hiệu lực','Tháng','Năm','QĐ ban hành','Trạng thái'];
+const EXPIRED_TAB = '__expired__';
+
+// numbering-rule state, parsed from sheet "Nguyên tắc đặt mã số"
+let codeRules = {};   // { sheetName: {prefix, mid} }
+let unitList = [];    // [{ten, ma}]
 
 if (!FS_SUPPORTED) document.getElementById('browserWarn').style.display = 'block';
 
@@ -334,17 +346,73 @@ async function loadWorkbookFromArrayBuffer(buf){
     if (!workbook.Sheets[name]) return;
     const ws = workbook.Sheets[name];
     const rows = XLSX.utils.sheet_to_json(ws, {defval:''});
+    rows.forEach(r => { if (!r['Trạng thái']) r['Trạng thái'] = 'Còn hiệu lực'; });
     sheetData[name] = rows;
-    let cols = CORE_COLS.filter(c => rows.length === 0 || rows.some(r => c in r));
+    let cols = CORE_COLS.filter(c => rows.length === 0 || rows.some(r => c in r) || c === 'Trạng thái');
+    if (!cols.includes('Trạng thái')) cols.push('Trạng thái');
     if (cols.length === 0) cols = rows.length ? Object.keys(rows[0]) : CORE_COLS;
     sheetCols[name] = cols;
     addedRows[name] = new Set();
   });
   currentSheet = Object.keys(sheetData)[0] || null;
+  parseNumberingRules();
   buildTabs();
 }
 
+// ================== Parse numbering-rule sheet ==================
+function parseNumberingRules(){
+  codeRules = {}; unitList = [];
+  let ws = null;
+  for (const nm of workbook.SheetNames){
+    if (nm.trim() === 'Nguyên tắc đặt mã số'){ ws = workbook.Sheets[nm]; break; }
+  }
+  document.getElementById('ruleWarn').style.display = ws ? 'none' : 'block';
+  if (!ws) return;
+  const grid = XLSX.utils.sheet_to_json(ws, {header:1, defval:''});
+
+  // rule table: any row where colB looks like a template "X-xx-Yyy"
+  grid.forEach(row => {
+    const a = String(row[0]||'').trim();
+    const b = String(row[1]||'').trim();
+    if (!a || !b) return;
+    const m = b.match(/^(.+?)-xx-(.*)yy$/i);
+    if (!m) return;
+    const prefix = m[1].trim(), mid = m[2].trim();
+    const abbrMatch = a.match(/\(([^)]+)\)/);
+    const sheetName = abbrMatch ? abbrMatch[1].trim() : a;
+    codeRules[sheetName] = {prefix, mid};
+  });
+
+  // unit table: find header cells "Tên đơn vị" / "Mã đơn vị" anywhere in the grid
+  let headerRow = -1, tenCol = -1, maCol = -1;
+  grid.forEach((row, ri) => {
+    row.forEach((cell, ci) => {
+      const v = String(cell||'').trim();
+      if (v === 'Tên đơn vị'){ headerRow = ri; tenCol = ci; }
+      if (v === 'Mã đơn vị') maCol = ci;
+    });
+  });
+  if (headerRow >= 0 && tenCol >= 0 && maCol >= 0){
+    for (let ri = headerRow + 1; ri < grid.length; ri++){
+      const ten = String((grid[ri]||[])[tenCol] || '').trim();
+      const ma = String((grid[ri]||[])[maCol] || '').trim();
+      if (!ten || !ma) continue;
+      unitList.push({ten, ma});
+    }
+  }
+  unitList.sort((a,b) => a.ten.localeCompare(b.ten, 'vi'));
+  if (unitList.length === 0 || Object.keys(codeRules).length === 0){
+    document.getElementById('ruleWarn').style.display = 'block';
+  }
+}
+
 // ================== Tabs & table ==================
+function countExpired(){
+  let n = 0;
+  Object.keys(sheetData).forEach(s => { n += sheetData[s].filter(r => r['Trạng thái'] === 'Hết hiệu lực').length; });
+  return n;
+}
+
 function buildTabs(){
   const tabsEl = document.getElementById('tabs');
   tabsEl.innerHTML = '';
@@ -355,6 +423,15 @@ function buildTabs(){
     t.addEventListener('click', () => { currentSheet = name; editingRowIdx = null; buildTabs(); });
     tabsEl.appendChild(t);
   });
+  const et = document.createElement('div');
+  et.className = 'tab expired-tab' + (currentSheet === EXPIRED_TAB ? ' active' : '');
+  et.innerHTML = '⛔ Hết hiệu lực <span class="count">(' + countExpired() + ')</span>';
+  et.addEventListener('click', () => { currentSheet = EXPIRED_TAB; editingRowIdx = null; buildTabs(); });
+  tabsEl.appendChild(et);
+
+  document.getElementById('btnNewRow').style.display = (currentSheet === EXPIRED_TAB) ? 'none' : 'inline-block';
+  document.getElementById('unitFilter').style.display = (currentSheet === EXPIRED_TAB) ? 'none' : 'inline-block';
+
   updateUnitOptions();
   renderTable();
 }
@@ -362,7 +439,7 @@ function buildTabs(){
 function updateUnitOptions(){
   const sel = document.getElementById('unitFilter');
   sel.innerHTML = '<option value="">Tất cả đơn vị biên soạn</option>';
-  if (!currentSheet) return;
+  if (!currentSheet || currentSheet === EXPIRED_TAB) return;
   const units = [...new Set(sheetData[currentSheet].map(r => r['Đơn vị biên soạn']).filter(Boolean))].sort();
   units.forEach(u => { const o = document.createElement('option'); o.value = u; sel.appendChild(o); });
 }
@@ -375,6 +452,7 @@ function fmtDate(v){ if (v instanceof Date) return v.toISOString().slice(0,10); 
 function displayDate(v){ if (v instanceof Date) return v.toLocaleDateString('vi-VN'); return v || ''; }
 
 function renderTable(){
+  if (currentSheet === EXPIRED_TAB){ renderExpiredTable(); return; }
   const head = document.getElementById('tableHead');
   const body = document.getElementById('tableBody');
   head.innerHTML = ''; body.innerHTML = '';
@@ -425,6 +503,46 @@ function renderTable(){
   });
 }
 
+function renderExpiredTable(){
+  const head = document.getElementById('tableHead');
+  const body = document.getElementById('tableBody');
+  head.innerHTML = ''; body.innerHTML = '';
+  const cols = ['Nguồn (loại tài liệu)','MSTL','Tên tài liệu','Đơn vị biên soạn','Lần BH','Ngày hiệu lực','QĐ ban hành'];
+  cols.forEach(c => { const th = document.createElement('th'); th.textContent = c; head.appendChild(th); });
+  const thA = document.createElement('th'); head.appendChild(thA);
+
+  const search = document.getElementById('searchBox').value.trim().toLowerCase();
+  let all = [];
+  Object.keys(sheetData).forEach(s => {
+    sheetData[s].forEach((r, idx) => { if (r['Trạng thái'] === 'Hết hiệu lực') all.push({sheet:s, idx, r}); });
+  });
+  if (search) all = all.filter(({r}) => Object.values(r).some(v => String(v ?? '').toLowerCase().includes(search)));
+
+  if (all.length === 0){
+    const tr = document.createElement('tr'); const td = document.createElement('td');
+    td.colSpan = cols.length + 1; td.className = 'empty';
+    td.textContent = 'Chưa có tài liệu nào được đánh dấu "Hết hiệu lực".';
+    tr.appendChild(td); body.appendChild(tr); return;
+  }
+
+  all.forEach(({sheet, idx, r}) => {
+    const tr = document.createElement('tr');
+    const vals = [sheet, r['MSTL'], r['Tên tài liệu'], r['Đơn vị biên soạn'], r['Lần BH'], displayDate(r['Ngày hiệu lực']), r['QĐ ban hành']];
+    vals.forEach((v, i) => {
+      const td = document.createElement('td');
+      if (i === 1) td.classList.add('mstl');
+      td.textContent = (v === undefined || v === null) ? '' : v;
+      tr.appendChild(td);
+    });
+    const tdA = document.createElement('td'); tdA.className = 'actions-cell';
+    const bOpen = document.createElement('button'); bOpen.className = 'btn-secondary'; bOpen.textContent = 'Mở để sửa';
+    bOpen.onclick = () => { currentSheet = sheet; editingRowIdx = idx; buildTabs(); };
+    tdA.appendChild(bOpen);
+    tr.appendChild(tdA);
+    body.appendChild(tr);
+  });
+}
+
 function buildEditRow(cols, rowData, idxKey){
   const tr = document.createElement('tr');
   tr.classList.add('editing');
@@ -436,9 +554,26 @@ function buildEditRow(cols, rowData, idxKey){
       input = document.createElement('input'); input.type = 'date'; input.value = fmtDate(rowData[c]);
     } else if (c === 'Lần BH' || c === 'Stt'){
       input = document.createElement('input'); input.type = 'number'; input.value = rowData[c] ?? (c==='Lần BH'?1:'');
+    } else if (c === 'Trạng thái'){
+      input = document.createElement('select');
+      ['Còn hiệu lực','Hết hiệu lực'].forEach(v => {
+        const o = document.createElement('option'); o.value = v; o.textContent = v;
+        if ((rowData[c] || 'Còn hiệu lực') === v) o.selected = true;
+        input.appendChild(o);
+      });
     } else if (c === 'Đơn vị biên soạn'){
-      input = document.createElement('input'); input.setAttribute('list','unitListDL');
-      input.value = rowData[c] ?? '';
+      if (unitList.length){
+        input = document.createElement('select');
+        const opt0 = document.createElement('option'); opt0.value = ''; opt0.textContent = '-- Chọn đơn vị --';
+        input.appendChild(opt0);
+        unitList.forEach(u => {
+          const o = document.createElement('option'); o.value = u.ma; o.textContent = u.ten + ' (' + u.ma + ')';
+          if (rowData[c] === u.ma) o.selected = true;
+          input.appendChild(o);
+        });
+      } else {
+        input = document.createElement('input'); input.setAttribute('list','unitListDL'); input.value = rowData[c] ?? '';
+      }
     } else {
       input = document.createElement('input'); input.type = 'text'; input.value = rowData[c] ?? '';
     }
@@ -448,20 +583,29 @@ function buildEditRow(cols, rowData, idxKey){
     td.appendChild(input);
     tr.appendChild(td);
   });
-  if (!document.getElementById('unitListDL')){
+
+  if (inputs['Đơn vị biên soạn'] && idxKey === 'new'){
+    inputs['Đơn vị biên soạn'].addEventListener('change', () => {
+      const donvi = inputs['Đơn vị biên soạn'].value.trim();
+      const s = suggestNextMSTL(donvi);
+      if (s && inputs['MSTL']) inputs['MSTL'].value = s;
+    });
+  }
+  if (!unitList.length && !document.getElementById('unitListDL')){
     const dl = document.createElement('datalist'); dl.id = 'unitListDL';
     [...new Set(sheetData[currentSheet].map(r => r['Đơn vị biên soạn']).filter(Boolean))].forEach(u=>{
       const o = document.createElement('option'); o.value = u; dl.appendChild(o);
     });
     document.body.appendChild(dl);
   }
+
   const tdA = document.createElement('td'); tdA.className = 'actions-cell';
   const bSuggest = document.createElement('button'); bSuggest.className = 'btn-ghost'; bSuggest.textContent = 'Gợi ý MSTL';
   bSuggest.onclick = () => {
     const donvi = (inputs['Đơn vị biên soạn'].value || '').trim();
     const s = suggestNextMSTL(donvi);
     if (s) inputs['MSTL'].value = s;
-    else showRowMsg('err', donvi ? ('Chưa có tài liệu nào của đơn vị "'+donvi+'" để suy ra mẫu mã — nhập MSTL thủ công.') : 'Nhập đơn vị biên soạn trước.');
+    else showRowMsg('err', donvi ? ('Chưa có dữ liệu để suy ra mã cho đơn vị "'+donvi+'" — nhập MSTL thủ công.') : 'Chọn đơn vị biên soạn trước.');
   };
   const bSave = document.createElement('button'); bSave.className = 'btn-primary'; bSave.textContent = 'Lưu';
   bSave.onclick = () => saveRow(idxKey, inputs, cols);
@@ -472,20 +616,37 @@ function buildEditRow(cols, rowData, idxKey){
   return tr;
 }
 
-function suggestNextMSTL(donvi){
-  if (!currentSheet || !donvi) return null;
-  const rows = sheetData[currentSheet].filter(r => String(r['Đơn vị biên soạn']||'').trim() === donvi && r['MSTL']);
+// MSTL suggestion: uses the official rule (prefix + unit code + mid letter + running number)
+// when the current sheet has a parsed rule; otherwise falls back to guessing the pattern
+// from the largest existing MSTL for the same unit in this sheet.
+function suggestNextMSTL(donviCode){
+  if (!currentSheet || !donviCode) return null;
+  const rule = codeRules[currentSheet];
+  if (rule){
+    const fullPrefix = rule.prefix + '-' + donviCode + '-' + rule.mid;
+    let maxNum = 0, width = 2;
+    sheetData[currentSheet].forEach(r => {
+      const mstl = String(r['MSTL']||'');
+      if (!mstl.toUpperCase().startsWith(fullPrefix.toUpperCase())) return;
+      const rest = mstl.slice(fullPrefix.length);
+      const m = rest.match(/^(\d+)/);
+      if (m){ maxNum = Math.max(maxNum, parseInt(m[1],10)); width = Math.max(width, m[1].length); }
+    });
+    return fullPrefix + String(maxNum + 1).padStart(width, '0');
+  }
+  // fallback heuristic (no official rule found for this sheet, e.g. QT KXN)
+  const rows = sheetData[currentSheet].filter(r => String(r['Đơn vị biên soạn']||'').trim() === donviCode && r['MSTL']);
   if (rows.length === 0) return null;
   const groups = {};
   rows.forEach(r => {
     const m = String(r['MSTL']).match(/^(.*?)(\d+)$/);
     if (!m) return;
-    const prefix = m[1], numStr = m[2], num = parseInt(numStr,10);
-    if (!groups[prefix]) groups[prefix] = {max:num, width:numStr.length};
-    else { groups[prefix].max = Math.max(groups[prefix].max, num); groups[prefix].width = Math.max(groups[prefix].width, numStr.length); }
+    const p = m[1], numStr = m[2], num = parseInt(numStr,10);
+    if (!groups[p]) groups[p] = {max:num, width:numStr.length};
+    else { groups[p].max = Math.max(groups[p].max, num); groups[p].width = Math.max(groups[p].width, numStr.length); }
   });
   const prefixes = Object.keys(groups);
-  if (prefixes.length === 0) return null;
+  if (!prefixes.length) return null;
   prefixes.sort((a,b) => groups[b].max - groups[a].max);
   const chosen = prefixes[0]; const info = groups[chosen];
   return chosen + String(info.max+1).padStart(info.width,'0');
@@ -514,6 +675,7 @@ async function saveRow(idxKey, inputs, cols){
   newRow['Tháng'] = ngayObj ? (ngayObj.getMonth()+1) : (newRow['Tháng']||'');
   newRow['Năm'] = ngayObj ? ngayObj.getFullYear() : (newRow['Năm']||'');
   newRow['Lần BH'] = Number(get('Lần BH')) || 1;
+  if (!newRow['Trạng thái']) newRow['Trạng thái'] = 'Còn hiệu lực';
 
   if (idxKey === 'new'){
     const maxStt = rows.reduce((m,r)=>Math.max(m, parseInt(r['Stt'])||0), 0);
@@ -560,13 +722,13 @@ function renderStats(){
   const all = getAllRowsFlat();
   const sheets = Object.keys(sheetData);
 
-  // ---- summary cards ----
   const totalDocs = all.length;
   const units = new Set(all.map(r => r['Đơn vị biên soạn']).filter(Boolean));
   const pending = all.filter(r => {
     const qd = String(r['QĐ ban hành']||'').trim().toLowerCase();
     return !qd || qd === 'đang cập nhật';
   }).length;
+  const expired = all.filter(r => r['Trạng thái'] === 'Hết hiệu lực').length;
   const thisYear = new Date().getFullYear();
   const thisYearCount = all.filter(r => Number(r['Năm']) === thisYear || (r['Ngày hiệu lực'] instanceof Date && r['Ngày hiệu lực'].getFullYear() === thisYear)).length;
 
@@ -576,7 +738,8 @@ function renderStats(){
     ['Tổng số tài liệu', totalDocs],
     ['Đơn vị biên soạn', units.size],
     ['Ban hành năm ' + thisYear, thisYearCount],
-    ['Chưa có số QĐ chính thức', pending]
+    ['Chưa có số QĐ chính thức', pending],
+    ['Hết hiệu lực', expired]
   ];
   cardDefs.forEach(([lbl, num]) => {
     const div = document.createElement('div'); div.className = 'card';
@@ -584,21 +747,20 @@ function renderStats(){
     cards.appendChild(div);
   });
 
-  // ---- unit x sheet matrix ----
-  const unitList = [...units].sort();
+  const unitList2 = [...units].sort();
   const matrix = {};
-  unitList.forEach(u => { matrix[u] = {}; sheets.forEach(s => matrix[u][s] = 0); });
+  unitList2.forEach(u => { matrix[u] = {}; sheets.forEach(s => matrix[u][s] = 0); });
   all.forEach(r => {
     const u = r['Đơn vị biên soạn'];
     if (!u || !matrix[u]) return;
     matrix[u][r.__sheet] = (matrix[u][r.__sheet] || 0) + 1;
   });
   const totalsBySheet = {}; sheets.forEach(s => totalsBySheet[s] = 0);
-  unitList.forEach(u => sheets.forEach(s => totalsBySheet[s] += matrix[u][s]));
+  unitList2.forEach(u => sheets.forEach(s => totalsBySheet[s] += matrix[u][s]));
 
   const mt = document.getElementById('matrixTable');
   let html = '<thead><tr><th>Đơn vị</th>' + sheets.map(s=>'<th>'+s+'</th>').join('') + '<th>Tổng</th></tr></thead><tbody>';
-  unitList
+  unitList2
     .map(u => ({u, total: sheets.reduce((s,c)=>s+matrix[u][c],0)}))
     .sort((a,b)=>b.total-a.total)
     .forEach(({u,total}) => {
@@ -608,7 +770,6 @@ function renderStats(){
   html += '</tbody>';
   mt.innerHTML = html;
 
-  // ---- year breakdown ----
   const yearCounts = {};
   all.forEach(r => {
     let y = Number(r['Năm']);
