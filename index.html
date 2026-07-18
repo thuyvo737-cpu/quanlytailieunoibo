@@ -1,0 +1,681 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Quản lý &amp; Cấp số Tài liệu nội bộ — BVQY175</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@500;700;800&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+  :root{
+    --ink:#12261e; --paper:#f3f7f3; --paper-2:#ffffff; --line:#dbe6dc;
+    --green:#1c8a5c; --green-deep:#0f4a34; --green-soft:#e6f3ea;
+    --lime:#8bc34a; --amber:#d98c2b; --muted:#5f7168;
+    --mono:'JetBrains Mono',Consolas,monospace;
+    --head:'Manrope',system-ui,sans-serif; --sans:'Inter','Segoe UI',system-ui,sans-serif;
+  }
+  *{box-sizing:border-box;}
+  body{margin:0;background:var(--paper);color:var(--ink);font-family:var(--sans);font-size:14px;line-height:1.5;}
+  header{background:var(--green-deep);color:#eef7f0;padding:20px 26px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;border-bottom:4px solid var(--lime);}
+  header h1{font-family:var(--head);font-weight:800;font-size:21px;margin:0;letter-spacing:.1px;}
+  header .sub{font-size:12px;color:#bfe0cc;font-family:var(--mono);}
+  #statusBar{display:flex;align-items:center;gap:10px;font-family:var(--mono);font-size:12px;}
+  .dot{width:8px;height:8px;border-radius:50%;background:#7c8e8b;display:inline-block;}
+  .dot.on{background:#8bf0b0;box-shadow:0 0 6px #8bf0b0;}
+  .dot.off{background:#e2b25a;}
+  main{max-width:1280px;margin:0 auto;padding:20px 18px 70px;}
+  .panel{background:var(--paper-2);border:1px solid var(--line);border-radius:10px;padding:16px 18px;margin-bottom:16px;}
+  .panel h2{font-family:var(--head);font-weight:800;font-size:15.5px;margin:0 0 10px;color:var(--green-deep);}
+  .row{display:flex;gap:12px;flex-wrap:wrap;align-items:flex-end;}
+  .field{display:flex;flex-direction:column;gap:4px;min-width:150px;flex:1;}
+  label{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.4px;font-weight:600;}
+  input, select{padding:7px 8px;border:1px solid var(--line);border-radius:6px;font-size:13px;font-family:var(--sans);background:#fbfdfa;color:var(--ink);}
+  input:focus, select:focus{outline:2px solid var(--green);outline-offset:1px;}
+  button{cursor:pointer;border:none;border-radius:6px;padding:8px 14px;font-size:12.5px;font-weight:700;font-family:var(--sans);}
+  .btn-primary{background:var(--green);color:#fff;}
+  .btn-primary:hover{background:var(--green-deep);}
+  .btn-secondary{background:transparent;border:1px solid var(--green);color:var(--green-deep);}
+  .btn-secondary:hover{background:var(--green-soft);}
+  .btn-ghost{background:transparent;color:var(--muted);border:1px dashed var(--line);}
+  .btn-danger{background:transparent;color:#a13322;border:1px solid #e6b6ac;}
+  .btn-danger:hover{background:#fbeceb;}
+  button:disabled{opacity:.4;cursor:not-allowed;}
+  .connect-box{border:2px dashed var(--line);border-radius:10px;padding:22px;text-align:center;color:var(--muted);}
+  .connect-box strong{color:var(--green-deep);}
+  .hint{font-size:12px;color:var(--muted);margin-top:6px;}
+  .note{font-size:11.5px;color:var(--muted);font-family:var(--mono);padding:8px 10px;background:var(--green-soft);border-left:3px solid var(--lime);margin-top:10px;border-radius:0 4px 4px 0;}
+  .mainnav{display:flex;gap:6px;margin-bottom:16px;}
+  .mainnav button{background:var(--paper-2);border:1px solid var(--line);color:var(--muted);padding:9px 16px;border-radius:20px;}
+  .mainnav button.active{background:var(--green-deep);border-color:var(--green-deep);color:#fff;}
+  .tabs{display:flex;gap:4px;flex-wrap:wrap;border-bottom:1px solid var(--line);margin-bottom:12px;}
+  .tab{padding:7px 12px;font-size:12px;font-family:var(--mono);color:var(--muted);cursor:pointer;border-bottom:2px solid transparent;white-space:nowrap;}
+  .tab.active{color:var(--green-deep);border-bottom-color:var(--lime);font-weight:700;}
+  .tab .count{color:var(--green);}
+  table{width:100%;border-collapse:collapse;font-size:12.5px;}
+  thead th{text-align:left;padding:7px 7px;background:var(--green-soft);border-bottom:2px solid var(--line);color:var(--green-deep);position:sticky;top:0;white-space:nowrap;}
+  tbody td{padding:6px 7px;border-bottom:1px solid #ecf1ec;vertical-align:top;}
+  tbody tr:hover{background:#f7faf6;}
+  tbody tr.new-row{background:#fff3e0;}
+  tbody tr.editing{background:var(--green-soft);}
+  .mstl{font-family:var(--mono);font-weight:700;color:var(--green-deep);}
+  .table-wrap{max-height:460px;overflow:auto;border:1px solid var(--line);border-radius:8px;}
+  .toolbar{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:10px;}
+  .toolbar input[type=search]{flex:1;min-width:200px;}
+  .empty{padding:26px;text-align:center;color:var(--muted);font-family:var(--mono);font-size:12px;}
+  .msg{font-size:12px;padding:7px 10px;border-radius:6px;display:none;margin-top:8px;}
+  .msg.show{display:block;}
+  .msg.ok{background:#eaf6ee;color:#2f7d4f;border:1px solid #bfe4cc;}
+  .msg.err{background:#fbeceb;color:#a13322;border:1px solid #f0c2bc;}
+  .cell-input{width:100%;padding:4px 5px;font-size:12px;border:1px solid var(--green);border-radius:4px;}
+  .actions-cell{white-space:nowrap;display:flex;gap:5px;}
+  .actions-cell button{padding:4px 8px;font-size:11px;}
+  footer{text-align:center;color:var(--muted);font-size:11px;font-family:var(--mono);padding:18px;}
+  .browserwarn{font-size:12px;background:#fff4e2;border:1px solid #f0d3a8;color:var(--amber);padding:9px 11px;border-radius:6px;margin-bottom:12px;}
+  .kbd{border:1px solid var(--line);border-bottom-width:2px;border-radius:4px;padding:0 5px;font-family:var(--mono);font-size:11px;background:#fff;}
+
+  /* stats */
+  .cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:12px;margin-bottom:16px;}
+  .card{background:var(--green-soft);border:1px solid var(--line);border-radius:10px;padding:14px 16px;}
+  .card .num{font-family:var(--head);font-weight:800;font-size:26px;color:var(--green-deep);}
+  .card .lbl{font-size:11.5px;color:var(--muted);text-transform:uppercase;letter-spacing:.3px;margin-top:2px;}
+  .bar-row{display:grid;grid-template-columns:70px 1fr 50px;gap:8px;align-items:center;margin:5px 0;font-size:12px;}
+  .bar-track{background:#eef3ec;border-radius:4px;overflow:hidden;height:16px;}
+  .bar-fill{background:linear-gradient(90deg,var(--green),var(--lime));height:100%;border-radius:4px;}
+  .matrix-wrap{overflow-x:auto;}
+  .matrix-wrap table td, .matrix-wrap table th{text-align:right;}
+  .matrix-wrap table td:first-child, .matrix-wrap table th:first-child{text-align:left;}
+  .matrix-wrap tr.total-row td{font-weight:800;background:var(--green-soft);color:var(--green-deep);}
+  .range-result{margin-top:12px;font-size:13px;}
+  .range-result .big{font-family:var(--head);font-weight:800;font-size:22px;color:var(--green-deep);}
+</style>
+</head>
+<body>
+
+<header>
+  <div>
+    <h1>Cấp số &amp; Quản lý Tài liệu nội bộ</h1>
+    <div class="sub">BVQY175 — Phòng Quản lý Chất lượng</div>
+  </div>
+  <div id="statusBar"><span class="dot off" id="statusDot"></span><span id="statusText">Chưa kết nối file dữ liệu</span></div>
+</header>
+
+<main>
+
+  <div class="browserwarn" id="browserWarn" style="display:none">
+    Trình duyệt hiện tại không hỗ trợ ghi trực tiếp vào file trên máy (cần <b>Chrome</b> hoặc <b>Edge</b> bản mới).
+    Bạn vẫn thao tác bình thường — hệ thống sẽ tự tải một bản sao Excel về Downloads sau mỗi thay đổi, thay vì ghi đè trực tiếp vào file gốc.
+  </div>
+
+  <section class="panel" id="connectPanel">
+    <h2>Kết nối file dữ liệu trên máy</h2>
+    <div id="connectArea">
+      <div class="connect-box">
+        <div><strong>Chưa có file nào được liên kết.</strong></div>
+        <div class="hint">Bấm nút bên dưới và chọn file <span class="kbd">Theo_dõi_cấp_số_tài_liệu_nội_bộ.xlsx</span> đang có trên máy bạn.
+        Sau khi liên kết, mọi thay đổi bạn làm trên trang này sẽ <b>tự động ghi lại vào đúng file đó</b>.</div>
+        <div class="row" style="justify-content:center;margin-top:12px">
+          <button class="btn-primary" id="btnConnect">🔗 Chọn file Excel trên máy</button>
+        </div>
+      </div>
+    </div>
+    <div class="note">Dữ liệu không rời khỏi máy bạn — trang chỉ là mã HTML/JS tĩnh, host miễn phí (GitHub Pages / Cloudflare Pages). Đọc/ghi file qua tính năng của trình duyệt, không đi qua máy chủ nào.</div>
+  </section>
+
+  <div class="mainnav" id="mainNav" style="display:none">
+    <button class="active" id="navCatalog">📋 Danh mục tài liệu</button>
+    <button id="navStats">📊 Thống kê tổng hợp</button>
+  </div>
+
+  <section class="panel" id="workPanel" style="display:none">
+    <h2>Danh mục theo loại tài liệu</h2>
+    <div class="tabs" id="tabs"></div>
+    <div class="toolbar">
+      <input type="search" id="searchBox" placeholder="Tìm theo tên tài liệu, đơn vị, MSTL…">
+      <select id="unitFilter"><option value="">Tất cả đơn vị biên soạn</option></select>
+      <button class="btn-primary" id="btnNewRow">+ Thêm tài liệu mới</button>
+    </div>
+    <div class="table-wrap"><table id="dataTable">
+      <thead><tr id="tableHead"></tr></thead>
+      <tbody id="tableBody"></tbody>
+    </table></div>
+    <div class="msg" id="rowMsg"></div>
+  </section>
+
+  <section class="panel" id="statsPanel" style="display:none">
+    <h2>Tổng quan toàn viện</h2>
+    <div class="cards" id="statsCards"></div>
+
+    <h2>Số tài liệu theo Đơn vị biên soạn × Loại tài liệu</h2>
+    <div class="matrix-wrap"><table id="matrixTable"></table></div>
+
+    <h2 style="margin-top:18px">Tài liệu ban hành theo năm</h2>
+    <div id="yearChart"></div>
+
+    <h2 style="margin-top:18px">Đếm tài liệu ban hành trong khoảng thời gian</h2>
+    <div class="row">
+      <div class="field"><label>Từ ngày</label><input type="date" id="rangeFrom"></div>
+      <div class="field"><label>Đến ngày</label><input type="date" id="rangeTo"></div>
+      <button class="btn-secondary" id="btnRange">Tính</button>
+    </div>
+    <div class="range-result" id="rangeResult"></div>
+  </section>
+
+</main>
+
+<footer>Xử lý cục bộ trong trình duyệt bằng SheetJS · Không có backend, không gửi dữ liệu ra ngoài máy bạn.</footer>
+
+<script>
+// ================== State ==================
+let workbook = null;
+let sheetData = {};
+let sheetCols = {};
+let currentSheet = null;
+let addedRows = {};
+let fileHandle = null;
+let fileName = 'Theo_doi_cap_so_tai_lieu_noi_bo.xlsx';
+let editingRowIdx = null;
+const FS_SUPPORTED = 'showOpenFilePicker' in window;
+
+const EDITABLE_SHEETS = ['QTVH','QTCS','QTKT','QTTH','QT KXN','Quy định','Hướng dẫn','Phác đồ'];
+const CORE_COLS = ['Stt','Loại tài liệu','Đơn vị biên soạn','MSTL','Tên tài liệu','Lần BH','Ngày hiệu lực','Tháng','Năm','QĐ ban hành'];
+
+if (!FS_SUPPORTED) document.getElementById('browserWarn').style.display = 'block';
+
+// ================== IndexedDB ==================
+function idbOpen(){
+  return new Promise((resolve, reject) => {
+    const req = indexedDB.open('mstl-app-db', 1);
+    req.onupgradeneeded = () => req.result.createObjectStore('kv');
+    req.onsuccess = () => resolve(req.result);
+    req.onerror = () => reject(req.error);
+  });
+}
+async function idbSet(key, val){
+  const db = await idbOpen();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction('kv', 'readwrite');
+    tx.objectStore('kv').put(val, key);
+    tx.oncomplete = resolve; tx.onerror = () => reject(tx.error);
+  });
+}
+async function idbGet(key){
+  const db = await idbOpen();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction('kv', 'readonly');
+    const req = tx.objectStore('kv').get(key);
+    req.onsuccess = () => resolve(req.result);
+    req.onerror = () => reject(req.error);
+  });
+}
+
+// ================== Connect file ==================
+document.getElementById('btnConnect').addEventListener('click', connectNewFile);
+
+async function connectNewFile(){
+  try{
+    if (FS_SUPPORTED){
+      const [handle] = await window.showOpenFilePicker({
+        types: [{ description: 'Excel', accept: {'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': ['.xlsx']} }]
+      });
+      const perm = await handle.queryPermission({mode:'readwrite'});
+      if (perm !== 'granted'){
+        const req = await handle.requestPermission({mode:'readwrite'});
+        if (req !== 'granted'){ setStatus(false, 'Chưa được cấp quyền ghi file.'); return; }
+      }
+      fileHandle = handle;
+      fileName = handle.name;
+      await idbSet('linkedHandle', handle);
+      const file = await handle.getFile();
+      await loadWorkbookFromArrayBuffer(await file.arrayBuffer());
+      setStatus(true, 'Đã liên kết: ' + fileName + ' · Tự động lưu: BẬT');
+    } else {
+      const input = document.createElement('input');
+      input.type = 'file'; input.accept = '.xlsx,.xls';
+      input.onchange = async (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+        fileName = file.name;
+        await loadWorkbookFromArrayBuffer(await file.arrayBuffer());
+        setStatus(true, 'Đã mở: ' + fileName + ' · Tự động lưu: tải bản sao về Downloads sau mỗi thay đổi');
+      };
+      input.click();
+    }
+    renderConnected();
+    document.getElementById('mainNav').style.display = 'flex';
+    document.getElementById('workPanel').style.display = 'block';
+  } catch(err){
+    if (err.name !== 'AbortError') console.error(err);
+  }
+}
+
+function renderConnected(){
+  document.getElementById('connectArea').innerHTML =
+    '<div class="row"><span>Đang làm việc với: <b>' + fileName + '</b></span>' +
+    '<button class="btn-ghost" id="btnDisconnect">Đổi file khác</button></div>';
+  document.getElementById('btnDisconnect').addEventListener('click', disconnectFile);
+}
+
+async function disconnectFile(){
+  fileHandle = null;
+  await idbSet('linkedHandle', null);
+  document.getElementById('mainNav').style.display = 'none';
+  document.getElementById('workPanel').style.display = 'none';
+  document.getElementById('statsPanel').style.display = 'none';
+  document.getElementById('connectArea').innerHTML =
+    '<div class="connect-box"><div><strong>Chưa có file nào được liên kết.</strong></div>' +
+    '<div class="row" style="justify-content:center;margin-top:12px"><button class="btn-primary" id="btnConnect">🔗 Chọn file Excel trên máy</button></div></div>';
+  document.getElementById('btnConnect').addEventListener('click', connectNewFile);
+  setStatus(false, 'Chưa kết nối file dữ liệu');
+}
+
+window.addEventListener('load', async () => {
+  if (!FS_SUPPORTED) return;
+  try{
+    const handle = await idbGet('linkedHandle');
+    if (!handle) return;
+    const perm = await handle.queryPermission({mode:'readwrite'});
+    if (perm === 'granted'){
+      fileHandle = handle; fileName = handle.name;
+      const file = await handle.getFile();
+      await loadWorkbookFromArrayBuffer(await file.arrayBuffer());
+      renderConnected();
+      document.getElementById('mainNav').style.display = 'flex';
+      document.getElementById('workPanel').style.display = 'block';
+      setStatus(true, 'Đã kết nối lại: ' + fileName + ' · Tự động lưu: BẬT');
+    } else {
+      document.getElementById('connectArea').innerHTML =
+        '<div class="connect-box"><div><strong>Trước đây bạn đã liên kết:</strong> ' + (handle.name||'') + '</div>' +
+        '<div class="row" style="justify-content:center;margin-top:12px"><button class="btn-primary" id="btnReconnect">🔗 Cấp lại quyền &amp; tiếp tục</button>' +
+        ' <button class="btn-ghost" id="btnConnectOther">Chọn file khác</button></div></div>';
+      document.getElementById('btnReconnect').addEventListener('click', async () => {
+        const req = await handle.requestPermission({mode:'readwrite'});
+        if (req === 'granted'){
+          fileHandle = handle; fileName = handle.name;
+          const file = await handle.getFile();
+          await loadWorkbookFromArrayBuffer(await file.arrayBuffer());
+          renderConnected();
+          document.getElementById('mainNav').style.display = 'flex';
+          document.getElementById('workPanel').style.display = 'block';
+          setStatus(true, 'Đã kết nối lại: ' + fileName + ' · Tự động lưu: BẬT');
+        }
+      });
+      document.getElementById('btnConnectOther').addEventListener('click', connectNewFile);
+    }
+  } catch(e){ /* handle no longer valid */ }
+});
+
+function setStatus(ok, text){
+  document.getElementById('statusDot').className = 'dot ' + (ok ? 'on' : 'off');
+  document.getElementById('statusText').textContent = text;
+}
+
+// ================== Nav ==================
+document.getElementById('navCatalog').addEventListener('click', () => {
+  document.getElementById('navCatalog').classList.add('active');
+  document.getElementById('navStats').classList.remove('active');
+  document.getElementById('workPanel').style.display = 'block';
+  document.getElementById('statsPanel').style.display = 'none';
+});
+document.getElementById('navStats').addEventListener('click', () => {
+  document.getElementById('navStats').classList.add('active');
+  document.getElementById('navCatalog').classList.remove('active');
+  document.getElementById('workPanel').style.display = 'none';
+  document.getElementById('statsPanel').style.display = 'block';
+  renderStats();
+});
+
+// ================== Load workbook ==================
+async function loadWorkbookFromArrayBuffer(buf){
+  workbook = XLSX.read(new Uint8Array(buf), {type:'array', cellDates:true});
+  sheetData = {}; sheetCols = {}; addedRows = {};
+  EDITABLE_SHEETS.forEach(name => {
+    if (!workbook.Sheets[name]) return;
+    const ws = workbook.Sheets[name];
+    const rows = XLSX.utils.sheet_to_json(ws, {defval:''});
+    sheetData[name] = rows;
+    let cols = CORE_COLS.filter(c => rows.length === 0 || rows.some(r => c in r));
+    if (cols.length === 0) cols = rows.length ? Object.keys(rows[0]) : CORE_COLS;
+    sheetCols[name] = cols;
+    addedRows[name] = new Set();
+  });
+  currentSheet = Object.keys(sheetData)[0] || null;
+  buildTabs();
+}
+
+// ================== Tabs & table ==================
+function buildTabs(){
+  const tabsEl = document.getElementById('tabs');
+  tabsEl.innerHTML = '';
+  Object.keys(sheetData).forEach(name => {
+    const t = document.createElement('div');
+    t.className = 'tab' + (name === currentSheet ? ' active' : '');
+    t.innerHTML = name + ' <span class="count">(' + sheetData[name].length + ')</span>';
+    t.addEventListener('click', () => { currentSheet = name; editingRowIdx = null; buildTabs(); });
+    tabsEl.appendChild(t);
+  });
+  updateUnitOptions();
+  renderTable();
+}
+
+function updateUnitOptions(){
+  const sel = document.getElementById('unitFilter');
+  sel.innerHTML = '<option value="">Tất cả đơn vị biên soạn</option>';
+  if (!currentSheet) return;
+  const units = [...new Set(sheetData[currentSheet].map(r => r['Đơn vị biên soạn']).filter(Boolean))].sort();
+  units.forEach(u => { const o = document.createElement('option'); o.value = u; sel.appendChild(o); });
+}
+
+document.getElementById('searchBox').addEventListener('input', renderTable);
+document.getElementById('unitFilter').addEventListener('change', renderTable);
+document.getElementById('btnNewRow').addEventListener('click', () => { editingRowIdx = 'new'; renderTable(); });
+
+function fmtDate(v){ if (v instanceof Date) return v.toISOString().slice(0,10); return v || ''; }
+function displayDate(v){ if (v instanceof Date) return v.toLocaleDateString('vi-VN'); return v || ''; }
+
+function renderTable(){
+  const head = document.getElementById('tableHead');
+  const body = document.getElementById('tableBody');
+  head.innerHTML = ''; body.innerHTML = '';
+  if (!currentSheet){ return; }
+  const cols = sheetCols[currentSheet];
+  cols.forEach(c => { const th = document.createElement('th'); th.textContent = c; head.appendChild(th); });
+  const thAction = document.createElement('th'); thAction.textContent = ''; head.appendChild(thAction);
+
+  const search = document.getElementById('searchBox').value.trim().toLowerCase();
+  const unit = document.getElementById('unitFilter').value;
+  const rows = sheetData[currentSheet];
+
+  if (editingRowIdx === 'new') body.appendChild(buildEditRow(cols, {}, 'new'));
+
+  const filtered = rows.map((r, idx) => ({r, idx})).filter(({r}) => {
+    if (unit && String(r['Đơn vị biên soạn']||'') !== unit) return false;
+    if (!search) return true;
+    return cols.some(c => String(r[c] ?? '').toLowerCase().includes(search));
+  });
+
+  if (filtered.length === 0 && editingRowIdx !== 'new'){
+    const tr = document.createElement('tr');
+    const td = document.createElement('td'); td.colSpan = cols.length + 1; td.className = 'empty';
+    td.textContent = 'Không có dữ liệu phù hợp trong sheet "' + currentSheet + '".';
+    tr.appendChild(td); body.appendChild(tr); return;
+  }
+
+  filtered.forEach(({r, idx}) => {
+    if (editingRowIdx === idx){ body.appendChild(buildEditRow(cols, r, idx)); return; }
+    const tr = document.createElement('tr');
+    if (addedRows[currentSheet] && addedRows[currentSheet].has(idx)) tr.classList.add('new-row');
+    cols.forEach(c => {
+      const td = document.createElement('td');
+      let val = r[c];
+      if (c.includes('Ngày')) val = displayDate(val);
+      if (c === 'MSTL') td.classList.add('mstl');
+      td.textContent = (val === undefined || val === null) ? '' : val;
+      tr.appendChild(td);
+    });
+    const tdA = document.createElement('td'); tdA.className = 'actions-cell';
+    const bEdit = document.createElement('button'); bEdit.className = 'btn-secondary'; bEdit.textContent = 'Sửa';
+    bEdit.onclick = () => { editingRowIdx = idx; renderTable(); };
+    const bDel = document.createElement('button'); bDel.className = 'btn-danger'; bDel.textContent = 'Xóa';
+    bDel.onclick = () => deleteRow(idx);
+    tdA.appendChild(bEdit); tdA.appendChild(bDel);
+    tr.appendChild(tdA);
+    body.appendChild(tr);
+  });
+}
+
+function buildEditRow(cols, rowData, idxKey){
+  const tr = document.createElement('tr');
+  tr.classList.add('editing');
+  const inputs = {};
+  cols.forEach(c => {
+    const td = document.createElement('td');
+    let input;
+    if (c === 'Ngày hiệu lực'){
+      input = document.createElement('input'); input.type = 'date'; input.value = fmtDate(rowData[c]);
+    } else if (c === 'Lần BH' || c === 'Stt'){
+      input = document.createElement('input'); input.type = 'number'; input.value = rowData[c] ?? (c==='Lần BH'?1:'');
+    } else if (c === 'Đơn vị biên soạn'){
+      input = document.createElement('input'); input.setAttribute('list','unitListDL');
+      input.value = rowData[c] ?? '';
+    } else {
+      input = document.createElement('input'); input.type = 'text'; input.value = rowData[c] ?? '';
+    }
+    input.className = 'cell-input';
+    input.dataset.col = c;
+    inputs[c] = input;
+    td.appendChild(input);
+    tr.appendChild(td);
+  });
+  if (!document.getElementById('unitListDL')){
+    const dl = document.createElement('datalist'); dl.id = 'unitListDL';
+    [...new Set(sheetData[currentSheet].map(r => r['Đơn vị biên soạn']).filter(Boolean))].forEach(u=>{
+      const o = document.createElement('option'); o.value = u; dl.appendChild(o);
+    });
+    document.body.appendChild(dl);
+  }
+  const tdA = document.createElement('td'); tdA.className = 'actions-cell';
+  const bSuggest = document.createElement('button'); bSuggest.className = 'btn-ghost'; bSuggest.textContent = 'Gợi ý MSTL';
+  bSuggest.onclick = () => {
+    const donvi = (inputs['Đơn vị biên soạn'].value || '').trim();
+    const s = suggestNextMSTL(donvi);
+    if (s) inputs['MSTL'].value = s;
+    else showRowMsg('err', donvi ? ('Chưa có tài liệu nào của đơn vị "'+donvi+'" để suy ra mẫu mã — nhập MSTL thủ công.') : 'Nhập đơn vị biên soạn trước.');
+  };
+  const bSave = document.createElement('button'); bSave.className = 'btn-primary'; bSave.textContent = 'Lưu';
+  bSave.onclick = () => saveRow(idxKey, inputs, cols);
+  const bCancel = document.createElement('button'); bCancel.className = 'btn-ghost'; bCancel.textContent = 'Hủy';
+  bCancel.onclick = () => { editingRowIdx = null; renderTable(); };
+  tdA.appendChild(bSuggest); tdA.appendChild(bSave); tdA.appendChild(bCancel);
+  tr.appendChild(tdA);
+  return tr;
+}
+
+function suggestNextMSTL(donvi){
+  if (!currentSheet || !donvi) return null;
+  const rows = sheetData[currentSheet].filter(r => String(r['Đơn vị biên soạn']||'').trim() === donvi && r['MSTL']);
+  if (rows.length === 0) return null;
+  const groups = {};
+  rows.forEach(r => {
+    const m = String(r['MSTL']).match(/^(.*?)(\d+)$/);
+    if (!m) return;
+    const prefix = m[1], numStr = m[2], num = parseInt(numStr,10);
+    if (!groups[prefix]) groups[prefix] = {max:num, width:numStr.length};
+    else { groups[prefix].max = Math.max(groups[prefix].max, num); groups[prefix].width = Math.max(groups[prefix].width, numStr.length); }
+  });
+  const prefixes = Object.keys(groups);
+  if (prefixes.length === 0) return null;
+  prefixes.sort((a,b) => groups[b].max - groups[a].max);
+  const chosen = prefixes[0]; const info = groups[chosen];
+  return chosen + String(info.max+1).padStart(info.width,'0');
+}
+
+function mostCommon(arr){
+  if (!arr.length) return null;
+  const counts = {}; arr.forEach(v => counts[v]=(counts[v]||0)+1);
+  return Object.keys(counts).sort((a,b)=>counts[b]-counts[a])[0];
+}
+
+async function saveRow(idxKey, inputs, cols){
+  const get = c => inputs[c] ? inputs[c].value.trim() : '';
+  const ten = get('Tên tài liệu'); const donvi = get('Đơn vị biên soạn'); const mstl = get('MSTL');
+  if (!ten || !donvi || !mstl){ showRowMsg('err','Vui lòng nhập tối thiểu: Tên tài liệu, Đơn vị biên soạn, MSTL.'); return; }
+
+  const rows = sheetData[currentSheet];
+  const dupIdx = rows.findIndex((r,i) => String(r['MSTL']).trim() === mstl && i !== idxKey);
+  if (dupIdx !== -1){ showRowMsg('err','Mã "'+mstl+'" đã tồn tại trong sheet này.'); return; }
+
+  const ngayVal = get('Ngày hiệu lực');
+  const ngayObj = ngayVal ? new Date(ngayVal) : '';
+  const newRow = {};
+  cols.forEach(c => { newRow[c] = inputs[c] ? inputs[c].value.trim() : ''; });
+  newRow['Ngày hiệu lực'] = ngayObj;
+  newRow['Tháng'] = ngayObj ? (ngayObj.getMonth()+1) : (newRow['Tháng']||'');
+  newRow['Năm'] = ngayObj ? ngayObj.getFullYear() : (newRow['Năm']||'');
+  newRow['Lần BH'] = Number(get('Lần BH')) || 1;
+
+  if (idxKey === 'new'){
+    const maxStt = rows.reduce((m,r)=>Math.max(m, parseInt(r['Stt'])||0), 0);
+    newRow['Stt'] = maxStt + 1;
+    if (!newRow['Loại tài liệu']) newRow['Loại tài liệu'] = mostCommon(rows.map(r=>r['Loại tài liệu']).filter(Boolean)) || currentSheet;
+    if (!newRow['QĐ ban hành']) newRow['QĐ ban hành'] = 'Đang cập nhật';
+    rows.push(newRow);
+    addedRows[currentSheet].add(rows.length - 1);
+  } else {
+    rows[idxKey] = Object.assign({}, rows[idxKey], newRow);
+    addedRows[currentSheet].add(idxKey);
+  }
+  editingRowIdx = null;
+  buildTabs();
+  showRowMsg('ok', 'Đã lưu "'+ten+'" — mã '+mstl+'.');
+  await persist();
+}
+
+async function deleteRow(idx){
+  if (!confirm('Xóa dòng "' + (sheetData[currentSheet][idx]['Tên tài liệu']||'') + '" khỏi sheet "' + currentSheet + '"?')) return;
+  sheetData[currentSheet].splice(idx, 1);
+  editingRowIdx = null;
+  buildTabs();
+  showRowMsg('ok', 'Đã xóa dòng.');
+  await persist();
+}
+
+function showRowMsg(type, text){
+  const el = document.getElementById('rowMsg');
+  el.textContent = text; el.className = 'msg show ' + type;
+  setTimeout(()=>{ el.classList.remove('show'); }, 4000);
+}
+
+// ================== Statistics ==================
+function getAllRowsFlat(){
+  const out = [];
+  Object.keys(sheetData).forEach(sheet => {
+    sheetData[sheet].forEach(r => out.push(Object.assign({__sheet: sheet}, r)));
+  });
+  return out;
+}
+
+function renderStats(){
+  const all = getAllRowsFlat();
+  const sheets = Object.keys(sheetData);
+
+  // ---- summary cards ----
+  const totalDocs = all.length;
+  const units = new Set(all.map(r => r['Đơn vị biên soạn']).filter(Boolean));
+  const pending = all.filter(r => {
+    const qd = String(r['QĐ ban hành']||'').trim().toLowerCase();
+    return !qd || qd === 'đang cập nhật';
+  }).length;
+  const thisYear = new Date().getFullYear();
+  const thisYearCount = all.filter(r => Number(r['Năm']) === thisYear || (r['Ngày hiệu lực'] instanceof Date && r['Ngày hiệu lực'].getFullYear() === thisYear)).length;
+
+  const cards = document.getElementById('statsCards');
+  cards.innerHTML = '';
+  const cardDefs = [
+    ['Tổng số tài liệu', totalDocs],
+    ['Đơn vị biên soạn', units.size],
+    ['Ban hành năm ' + thisYear, thisYearCount],
+    ['Chưa có số QĐ chính thức', pending]
+  ];
+  cardDefs.forEach(([lbl, num]) => {
+    const div = document.createElement('div'); div.className = 'card';
+    div.innerHTML = '<div class="num">' + num + '</div><div class="lbl">' + lbl + '</div>';
+    cards.appendChild(div);
+  });
+
+  // ---- unit x sheet matrix ----
+  const unitList = [...units].sort();
+  const matrix = {};
+  unitList.forEach(u => { matrix[u] = {}; sheets.forEach(s => matrix[u][s] = 0); });
+  all.forEach(r => {
+    const u = r['Đơn vị biên soạn'];
+    if (!u || !matrix[u]) return;
+    matrix[u][r.__sheet] = (matrix[u][r.__sheet] || 0) + 1;
+  });
+  const totalsBySheet = {}; sheets.forEach(s => totalsBySheet[s] = 0);
+  unitList.forEach(u => sheets.forEach(s => totalsBySheet[s] += matrix[u][s]));
+
+  const mt = document.getElementById('matrixTable');
+  let html = '<thead><tr><th>Đơn vị</th>' + sheets.map(s=>'<th>'+s+'</th>').join('') + '<th>Tổng</th></tr></thead><tbody>';
+  unitList
+    .map(u => ({u, total: sheets.reduce((s,c)=>s+matrix[u][c],0)}))
+    .sort((a,b)=>b.total-a.total)
+    .forEach(({u,total}) => {
+      html += '<tr><td>' + u + '</td>' + sheets.map(s => '<td>' + (matrix[u][s]||'') + '</td>').join('') + '<td><b>' + total + '</b></td></tr>';
+    });
+  html += '<tr class="total-row"><td>TỔNG CỘNG</td>' + sheets.map(s=>'<td>'+totalsBySheet[s]+'</td>').join('') + '<td>' + totalDocs + '</td></tr>';
+  html += '</tbody>';
+  mt.innerHTML = html;
+
+  // ---- year breakdown ----
+  const yearCounts = {};
+  all.forEach(r => {
+    let y = Number(r['Năm']);
+    if (!y && r['Ngày hiệu lực'] instanceof Date) y = r['Ngày hiệu lực'].getFullYear();
+    if (!y) return;
+    yearCounts[y] = (yearCounts[y]||0) + 1;
+  });
+  const years = Object.keys(yearCounts).map(Number).sort((a,b)=>a-b);
+  const maxCount = Math.max(1, ...years.map(y => yearCounts[y]));
+  const chartEl = document.getElementById('yearChart');
+  chartEl.innerHTML = '';
+  years.forEach(y => {
+    const pct = Math.round((yearCounts[y] / maxCount) * 100);
+    const row = document.createElement('div'); row.className = 'bar-row';
+    row.innerHTML = '<div>' + y + '</div><div class="bar-track"><div class="bar-fill" style="width:'+pct+'%"></div></div><div>' + yearCounts[y] + '</div>';
+    chartEl.appendChild(row);
+  });
+  if (years.length === 0) chartEl.innerHTML = '<div class="empty">Chưa có dữ liệu năm ban hành.</div>';
+}
+
+document.getElementById('btnRange').addEventListener('click', () => {
+  const fromVal = document.getElementById('rangeFrom').value;
+  const toVal = document.getElementById('rangeTo').value;
+  const resEl = document.getElementById('rangeResult');
+  if (!fromVal || !toVal){ resEl.innerHTML = '<span style="color:#a13322">Chọn đủ Từ ngày và Đến ngày.</span>'; return; }
+  const from = new Date(fromVal), to = new Date(toVal);
+  const all = getAllRowsFlat();
+  const inRange = all.filter(r => r['Ngày hiệu lực'] instanceof Date && r['Ngày hiệu lực'] >= from && r['Ngày hiệu lực'] <= to);
+  const bySheet = {};
+  inRange.forEach(r => bySheet[r.__sheet] = (bySheet[r.__sheet]||0)+1);
+  let html = '<div class="big">' + inRange.length + ' tài liệu</div>ban hành từ ' + from.toLocaleDateString('vi-VN') + ' đến ' + to.toLocaleDateString('vi-VN') + '.';
+  const parts = Object.keys(bySheet).map(s => s + ': ' + bySheet[s]);
+  if (parts.length) html += '<div class="hint">' + parts.join(' · ') + '</div>';
+  resEl.innerHTML = html;
+});
+
+// ================== Persist (autosave) ==================
+async function persist(){
+  if (!workbook) return;
+  EDITABLE_SHEETS.forEach(name => {
+    if (!sheetData[name]) return;
+    const ws = XLSX.utils.json_to_sheet(sheetData[name], {header: sheetCols[name]});
+    workbook.Sheets[name] = ws;
+    if (!workbook.SheetNames.includes(name)) workbook.SheetNames.push(name);
+  });
+  const arr = XLSX.write(workbook, {bookType:'xlsx', type:'array'});
+
+  if (FS_SUPPORTED && fileHandle){
+    try{
+      const writable = await fileHandle.createWritable();
+      await writable.write(arr);
+      await writable.close();
+      setStatus(true, 'Đã tự động lưu vào ' + fileName + ' lúc ' + new Date().toLocaleTimeString('vi-VN'));
+    } catch(e){
+      setStatus(false, 'Không ghi được vào file (quyền bị thu hồi?) — hãy kết nối lại.');
+    }
+  } else {
+    const blob = new Blob([arr], {type:'application/octet-stream'});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = fileName.replace(/\.xlsx?$/i,'') + '_capnhat.xlsx';
+    document.body.appendChild(a); a.click(); document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    setStatus(true, 'Đã tải bản sao cập nhật về Downloads lúc ' + new Date().toLocaleTimeString('vi-VN'));
+  }
+}
+</script>
+
+</body>
+</html>
